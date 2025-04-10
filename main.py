@@ -4,25 +4,29 @@ from tqdm import tqdm
 import logging
 import requests
 import json
+from dotenv import load_dotenv  # <-- adicionado
 
+# Carrega variáveis do .env
+load_dotenv()
+
+# Configuração de log
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
 # ------------------- Configurações e utilitários -------------------
 
-def load_credentials(config_file='config.json'):
-    try:
-        with open(config_file, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.critical(f"Erro ao carregar config: {e}")
-        return None
+# Pega credenciais do .env
+credentials = {
+    "token": os.getenv("TOKEN"),
+    "appkey": os.getenv("APPKEY"),
+    "username": os.getenv("USERNAME"),
+    "password": os.getenv("PASSWORD")
+}
 
-
-credentials = load_credentials()
-if not credentials:
-    raise SystemExit("Credenciais inválidas ou inexistentes")
+# Verifica se todos os valores estão presentes
+if not all(credentials.values()):
+    logger.critical("Alguma variável de ambiente está faltando no .env")
+    raise SystemExit("Variáveis de ambiente incompletas")
 
 url_auth = "https://api.sankhya.com.br/login"
 url_query = "https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DbExplorerSP.executeQuery&outputType=json"
@@ -33,7 +37,15 @@ token_cache = {"token": None}
 def auth(max_retries=3, delay=3):
     for attempt in range(1, max_retries + 1):
         try:
-            response = requests.post(url_auth, headers=credentials)
+            response = requests.post(
+                url_auth,
+                headers={
+                    "token": credentials["token"],
+                    "appkey": credentials["appkey"],
+                    "username": credentials["username"],
+                    "password": credentials["password"]
+                }
+            )
             if response.status_code == 200:
                 token = response.json().get("bearerToken")
                 if token:
