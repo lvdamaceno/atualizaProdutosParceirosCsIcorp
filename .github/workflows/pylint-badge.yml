@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -27,24 +30,12 @@ jobs:
           pylint main.py > pylint.log || true
           SCORE=$(tail -n 2 pylint.log | grep -Po '[0-9]+\.[0-9]+(?=/10)')
           echo "Pylint score: $SCORE"
-
-          # Badge color by score
-          if (( $(echo "$SCORE >= 9" | bc -l) )); then
-            COLOR="brightgreen"
-          elif (( $(echo "$SCORE >= 7" | bc -l) )); then
-            COLOR="yellow"
-          else
-            COLOR="red"
-          fi
-
-          curl "https://img.shields.io/badge/pylint-$SCORE/10-$COLOR" -o pylint_score.svg
+          curl "https://img.shields.io/badge/pylint-$SCORE/10-brightgreen" -o pylint_score.svg
 
       - name: Commit badge
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
           git add pylint_score.svg
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          git commit -m "Atualiza badge pylint (commit $COMMIT_HASH)" || echo "Sem mudanças"
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/lvdamaceno/atualizaProdutosParceirosCsIcorp.git
+          git commit -m "Atualiza badge pylint" || echo "Sem mudanças"
+          git push origin main
