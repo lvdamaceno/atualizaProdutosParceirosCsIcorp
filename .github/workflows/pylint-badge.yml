@@ -47,4 +47,4 @@ jobs:
           git add pylint_score.svg
           COMMIT_HASH=$(git rev-parse --short HEAD)
           git commit -m "Atualiza badge pylint (commit $COMMIT_HASH)" || echo "Sem mudanças"
-          git push https
+          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/lvdamaceno/atualizaProdutosParceirosCsIcorp.git
