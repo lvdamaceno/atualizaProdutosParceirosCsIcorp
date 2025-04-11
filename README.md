@@ -4,6 +4,8 @@ Este projeto automatiza a integração entre o sistema ERP **Sankhya** e uma API
 
 [![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
 
+![Pylint badge](./pylint_score.svg)
+
 ## 📌 Objetivo
 
 Automatizar a sincronização de dados da plataforma Sankhya com uma API REST externa, com envio periódico e seguro dos dados via cron job, utilizando autenticação com tokens e headers personalizados.
