@@ -6,11 +6,17 @@ utilizando credenciais armazenadas em variáveis de ambiente.
 """
 
 import os
+from datetime import datetime
 import requests
 from dotenv import load_dotenv
 from sankhya_api.exceptions import AuthError
 
 load_dotenv()
+
+
+def log_tempo(msg=""):
+    """Loga uma mensagem com timestamp atual para medir performance."""
+    print(f"{datetime.now()} - {msg}")
 
 
 class SankhyaAuth:  # pylint: disable=too-few-public-methods
@@ -31,6 +37,9 @@ class SankhyaAuth:  # pylint: disable=too-few-public-methods
         Levanta:
            AuthError: Se ocorrer um erro de autenticação ou conexão.
         """
+
+        # log_tempo("Início da autenticação")
+
         headers = {
             "token": os.getenv("SANKHYA_TOKEN"),
             "appkey": os.getenv("SANKHYA_APPKEY"),
@@ -38,16 +47,24 @@ class SankhyaAuth:  # pylint: disable=too-few-public-methods
             "password": os.getenv("SANKHYA_PASSWORD")
         }
 
+        # log_tempo("Headers de autenticação preparados")
+        # log_tempo("Antes de fazer POST na URL de autenticação")
+
         try:
-            response = requests.post(self.url_auth, headers=headers, timeout=10)
+            response = requests.post(self.url_auth, headers=headers, timeout=15)
+            # log_tempo("Resposta recebida da API Sankhya")
 
             if response.status_code == 200:
                 self.token = response.json().get("bearerToken")
                 if not self.token:
+                    # log_tempo("Token ausente no corpo da resposta")
                     raise AuthError("Token não encontrado no corpo da resposta.")
+                # log_tempo("Token obtido com sucesso")
                 return self.token
 
+            # log_tempo(f"Erro HTTP na autenticação: {response.status_code}")
             raise AuthError(f"Erro na autenticação: {response.status_code} - {response.text}")
 
         except requests.RequestException as e:
+            # log_tempo(f"Erro de conexão capturado: {e}")
             raise AuthError(f"Erro de conexão: {e}") from e

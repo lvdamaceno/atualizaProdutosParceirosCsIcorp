@@ -1,5 +1,6 @@
 """Define exceções personalizadas utilizadas no projeto para tratamento de erros específicos."""
 
+
 class AuthError(Exception):
     """Exceção personalizada para erros de autenticação com a API Sankhya."""
 

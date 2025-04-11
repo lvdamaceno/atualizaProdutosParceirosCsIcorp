@@ -39,35 +39,26 @@ def load_query(nome, **params):
         return query.format(**params)
 
 
+_sankhya_clients = {}
+
+
 def consulta_sankhya(nome_query, service, item=None, tempo=-15):
     """
-    Executa uma consulta na API Sankhya utilizando um arquivo SQL salvo no diretório 'queries'.
-
-    A função carrega uma query SQL a partir do nome do arquivo (com ou sem sufixo 'JSON'),
-    formata os parâmetros e executa a requisição via cliente Sankhya. Os resultados retornados
-    da API são processados e os itens extraídos.
-
-    Args:
-        nome_query (str): Nome do arquivo SQL (sem a extensão .sql).
-        service (str): Nome do serviço da API do sankhya
-        item (any, optional): Parâmetro opcional usado para formatação da query,
-        se for do tipo 'JSON'. Default é None.
-        tempo (int, optional): Parâmetro usado na formatação da query,
-        se não for do tipo 'JSON'. Default é -1.
-
-    Returns:
-        list: Lista contendo o primeiro elemento de cada linha retornada pela API
-        (equivalente a uma lista de valores da primeira coluna).
+    Executa uma consulta na API Sankhya reutilizando a mesma instância de SankhyaClient
+    por serviço, evitando nova autenticação desnecessária.
     """
+    if service not in _sankhya_clients:
+        base_url_sankhya = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName='
+        endpoint_sankhya = f"{base_url_sankhya}{service}&outputType=json"
+        _sankhya_clients[service] = SankhyaClient(service, endpoint_sankhya, 5)
 
-    base_url_sankhya = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName='
-    endpoint_sankhya = f"{base_url_sankhya}{service}&outputType=json"
-    client = SankhyaClient(service, endpoint_sankhya, 5)
+    client = _sankhya_clients[service]
 
     if "JSON" not in nome_query:
         query = load_query(nome_query, tempo=tempo)
     else:
         query = load_query(nome_query, item=item)
+
     result = client.execute_query(query)
     rows = result.get("responseBody", {}).get("rows", []) if result else []
     items = [item[0] for item in rows]
@@ -104,7 +95,7 @@ def envia_cs(dados, endpoint_cs):
     try:
         # dados_parceiro[0] é a string JSON que está dentro da lista
         lista_de_dicts = json.loads(dados[0])  # transforma a string JSON em objeto Python
-        response = requests.post(url, json=lista_de_dicts, headers=headers, timeout=30)
+        response = requests.post(url, json=lista_de_dicts, headers=headers, timeout=15)
         # logging.info(f"Status code: {response.status_code} | Resposta: {response.text}")
         return response
 
@@ -144,11 +135,10 @@ def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
     for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao):
         dados_consulta = consulta_sankhya(query_dados, sankhya_service, codigo)
         envia_cs(dados_consulta, endpoint_cs)
-    logging.info("Finalizando cadastro|atualização de %s", descricao)
+    logging.info("Finalizando cadastro|atualização de %s\n", descricao)
 
 
 if __name__ == "__main__":
     executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'Saldos_Atualiza', 'estoque')
-
