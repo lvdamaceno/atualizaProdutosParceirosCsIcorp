@@ -1,7 +1,15 @@
+"""
+Script principal para execução da integração entre a API Sankhya e o sistema CS.
+
+Este módulo coordena o carregamento de queries, consulta de dados via Sankhya,
+e envio das informações para o endpoint da CS50Integração.
+"""
+
 import json
 import logging
 import os
 import requests
+import requests.exceptions
 from dotenv import load_dotenv
 from tqdm import tqdm
 from sankhya_api.request import SankhyaClient
@@ -15,6 +23,16 @@ logger = logging.getLogger(__name__)
 
 
 def load_query(nome, **params):
+    """
+    Carrega uma query SQL de um arquivo no diretório 'queries' e aplica os parâmetros fornecidos.
+
+    Args:
+        nome (str): Nome do arquivo SQL (sem extensão .sql).
+        **params: Parâmetros que serão interpolados na query.
+
+    Returns:
+        str: A query SQL formatada com os parâmetros fornecidos.
+    """
     caminho = os.path.join("queries", f"{nome}.sql")
     with open(caminho, "r", encoding="utf-8") as file:
         query = file.read()
@@ -22,8 +40,27 @@ def load_query(nome, **params):
 
 
 def consulta_sankhya(nome_query, item=None, tempo=-1):
+    """
+    Executa uma consulta na API Sankhya utilizando um arquivo SQL salvo no diretório 'queries'.
+
+    A função carrega uma query SQL a partir do nome do arquivo (com ou sem sufixo 'JSON'),
+    formata os parâmetros e executa a requisição via cliente Sankhya. Os resultados retornados
+    da API são processados e os itens extraídos.
+
+    Args:
+        nome_query (str): Nome do arquivo SQL (sem a extensão .sql).
+        item (any, optional): Parâmetro opcional usado para formatação da query,
+        se for do tipo 'JSON'. Default é None.
+        tempo (int, optional): Parâmetro usado na formatação da query,
+        se não for do tipo 'JSON'. Default é -1.
+
+    Returns:
+        list: Lista contendo o primeiro elemento de cada linha retornada pela API
+        (equivalente a uma lista de valores da primeira coluna).
+    """
     service = "DbExplorerSP.executeQuery"
-    endpoint_sankhya = f"https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName={service}&outputType=json"
+    base_url_sankhya = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName='
+    endpoint_sankhya = f"{base_url_sankhya}{service}&outputType=json"
     client = SankhyaClient(service, endpoint_sankhya, 5)
 
     if "JSON" not in nome_query:
@@ -36,8 +73,24 @@ def consulta_sankhya(nome_query, item=None, tempo=-1):
     return items
 
 
-def envia_cs(dados, endpoint_cs):
-    url = f"https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/{endpoint_cs}?In_Tenant_ID=288"
+def envia_cs(dados, baseurl, endpoint_cs):
+    """
+    Envia uma lista de dados em formato JSON para o endpoint da API CS50 Integração.
+
+    A função espera que `dados` seja uma lista contendo uma única string JSON,
+    que será convertida para objeto Python e enviada via POST para o endpoint fornecido.
+
+    Args:
+        dados (list): Lista contendo uma string JSON como primeiro elemento.
+        Exemplo ['[{"chave": "valor"}]']
+        endpoint_cs (str): Parte final da URL do endpoint da CS50Integração
+        que será usado na requisição.
+
+    Returns:
+        Response | None: Retorna o objeto `requests.Response` se a requisição for bem-sucedida,
+                         ou None em caso de erro na conversão do JSON ou falha na requisição.
+    """
+    url = f"{baseurl}{endpoint_cs}?In_Tenant_ID=288"
     headers = {
         "Content-Type": "application/json"
     }
@@ -49,28 +102,49 @@ def envia_cs(dados, endpoint_cs):
     try:
         # dados_parceiro[0] é a string JSON que está dentro da lista
         lista_de_dicts = json.loads(dados[0])  # transforma a string JSON em objeto Python
-        response = requests.post(url, json=lista_de_dicts, headers=headers)
+        response = requests.post(url, json=lista_de_dicts, headers=headers, timeout=30)
         # logging.info(f"Status code: {response.status_code} | Resposta: {response.text}")
         return response
 
     except json.JSONDecodeError as e:
-        logging.error("Erro ao decodificar JSON:", e)
+        logging.info("Erro ao decodificar JSON: %s", e)
         return None
-    except Exception as e:
-        logging.error("Erro ao enviar requisição:", e)
+
+    except requests.exceptions.RequestException as e:
+        logging.info("Erro ao enviar requisição: %s", e)
         return None
 
 
-def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
+def executa_atualizacoes(query_codigos, query_dados, baseurl, endpoint_cs, descricao):
+    """
+    Executa o processo de sincronização de dados entre a API Sankhya e a API iCorp.
+
+    A função consulta códigos na Sankhya com uma primeira query (`query_codigos`), itera sobre cada
+    código e utiliza outra query (`query_dados`) para obter os dados específicos daquele item. Esses
+    dados são então enviados para um endpoint específico da iCorp.
+
+    Durante o processo, logs são gerados para indicar o início e fim da execução, e uma barra de
+    progresso é exibida com a biblioteca `tqdm`.
+
+    Args:
+        Nomes de query sempre sem extensão
+
+        query_codigos (str): Nome da query SQL usada para obter os códigos base.
+        query_dados (str): Nome da query SQL usada para obter os dados completos de cada código.
+        endpoint_cs (str): Identificador do endpoint iCorp para onde os dados serão enviados.
+        descricao (str): Descrição textual do tipo de dado sendo processado
+                         (ex: "produto", "cliente"), usada nos logs e na barra de progresso.
+    """
     codigos = consulta_sankhya(query_codigos)
-    logging.info(f'Iniciando cadastro|atualização de {descricao}')
-    for codigo in tqdm(codigos, desc=descricao.capitalize()+'s', unit=descricao):
+    logging.info("Iniciando cadastro|atualização de %s", descricao)
+    for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao):
         dados_consulta = consulta_sankhya(query_dados, codigo)
-        envia_cs(dados_consulta, endpoint_cs)
-    logging.info(f'Finalizando cadastro|atualização de {descricao}')
+        envia_cs(dados_consulta, baseurl, endpoint_cs)
+    logging.info("Finalizando cadastro|atualização de %s", descricao)
 
 
 if __name__ == "__main__":
-    executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
-    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
-    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'Saldos_Atualiza', 'estoque')
+    CS_BASE_URL = 'https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/'
+    executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', CS_BASE_URL, 'Cliente', 'parceiro')
+    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', CS_BASE_URL, 'ProdutoUpdate', 'produto')
+    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', CS_BASE_URL, 'Saldos_Atualiza', 'estoque')
