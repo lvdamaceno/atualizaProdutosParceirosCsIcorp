@@ -2,7 +2,7 @@
 
 Este projeto automatiza a integração entre o sistema ERP **Sankhya** e uma API externa (iCorp), realizando cadastros e atualizações de **clientes**, **produtos** e **estoque**.
 
-[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
+[//]: # ([![linting: pylint]&#40;https://img.shields.io/badge/linting-pylint-yellowgreen&#41;]&#40;https://github.com/pylint-dev/pylint&#41;)
 
 ![Pylint badge](./pylint_score.svg)
 
