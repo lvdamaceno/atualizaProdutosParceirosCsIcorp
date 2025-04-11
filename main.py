@@ -115,7 +115,7 @@ def envia_cs(dados, baseurl, endpoint_cs):
         return None
 
 
-def executa_atualizacoes(query_codigos, query_dados, cs_baseurl, sankhya_service, endpoint_cs, descricao):
+def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
     """
     Executa o processo de sincronização de dados entre a API Sankhya e a API iCorp.
 
@@ -135,6 +135,8 @@ def executa_atualizacoes(query_codigos, query_dados, cs_baseurl, sankhya_service
         descricao (str): Descrição textual do tipo de dado sendo processado
                          (ex: "produto", "cliente"), usada nos logs e na barra de progresso.
     """
+    cs_baseurl = 'https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/'
+    sankhya_service = "DbExplorerSP.executeQuery"
     codigos = consulta_sankhya(query_codigos, sankhya_service)
     logging.info("Iniciando cadastro|atualização de %s", descricao)
     for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao):
@@ -144,8 +146,7 @@ def executa_atualizacoes(query_codigos, query_dados, cs_baseurl, sankhya_service
 
 
 if __name__ == "__main__":
-    CS_BASE_URL = 'https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/'
-    SANKHYA_SERVICE = "DbExplorerSP.executeQuery"
-    executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', CS_BASE_URL, SANKHYA_SERVICE, 'Cliente', 'parceiro')
-    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', CS_BASE_URL, SANKHYA_SERVICE, 'ProdutoUpdate', 'produto')
-    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', CS_BASE_URL, SANKHYA_SERVICE, 'Saldos_Atualiza', 'estoque')
+
+    executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
+    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
+    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'Saldos_Atualiza', 'estoque')
