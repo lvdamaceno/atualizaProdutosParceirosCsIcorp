@@ -39,7 +39,7 @@ def load_query(nome, **params):
         return query.format(**params)
 
 
-def consulta_sankhya(nome_query, service, item=None, tempo=-1):
+def consulta_sankhya(nome_query, service, item=None, tempo=-15):
     """
     Executa uma consulta na API Sankhya utilizando um arquivo SQL salvo no diretório 'queries'.
 
@@ -49,6 +49,7 @@ def consulta_sankhya(nome_query, service, item=None, tempo=-1):
 
     Args:
         nome_query (str): Nome do arquivo SQL (sem a extensão .sql).
+        service (str): Nome do serviço da API do sankhya
         item (any, optional): Parâmetro opcional usado para formatação da query,
         se for do tipo 'JSON'. Default é None.
         tempo (int, optional): Parâmetro usado na formatação da query,
@@ -150,3 +151,4 @@ if __name__ == "__main__":
     executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'Saldos_Atualiza', 'estoque')
+
