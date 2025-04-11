@@ -73,7 +73,7 @@ def consulta_sankhya(nome_query, service, item=None, tempo=-1):
     return items
 
 
-def envia_cs(dados, baseurl, endpoint_cs):
+def envia_cs(dados, endpoint_cs):
     """
     Envia uma lista de dados em formato JSON para o endpoint da API CS50 Integração.
 
@@ -90,6 +90,7 @@ def envia_cs(dados, baseurl, endpoint_cs):
         Response | None: Retorna o objeto `requests.Response` se a requisição for bem-sucedida,
                          ou None em caso de erro na conversão do JSON ou falha na requisição.
     """
+    baseurl = 'https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/'
     url = f"{baseurl}{endpoint_cs}?In_Tenant_ID=288"
     headers = {
         "Content-Type": "application/json"
@@ -135,18 +136,17 @@ def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
         descricao (str): Descrição textual do tipo de dado sendo processado
                          (ex: "produto", "cliente"), usada nos logs e na barra de progresso.
     """
-    cs_baseurl = 'https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/'
     sankhya_service = "DbExplorerSP.executeQuery"
+
     codigos = consulta_sankhya(query_codigos, sankhya_service)
     logging.info("Iniciando cadastro|atualização de %s", descricao)
     for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao):
         dados_consulta = consulta_sankhya(query_dados, sankhya_service, codigo)
-        envia_cs(dados_consulta, cs_baseurl, endpoint_cs)
+        envia_cs(dados_consulta, endpoint_cs)
     logging.info("Finalizando cadastro|atualização de %s", descricao)
 
 
 if __name__ == "__main__":
-
     executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'Saldos_Atualiza', 'estoque')
