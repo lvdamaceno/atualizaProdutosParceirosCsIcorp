@@ -37,4 +37,4 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add pylint_score.svg
           git commit -m "Atualiza badge pylint" || echo "Sem mudanças"
-          git push
+          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/lvdamaceno/atualizaProdutosParceirosCsIcorp.git
