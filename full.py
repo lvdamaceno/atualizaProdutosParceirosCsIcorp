@@ -10,6 +10,7 @@ import logging
 import os
 import requests
 import requests.exceptions
+import sys
 from dotenv import load_dotenv
 from tqdm import tqdm
 from sankhya_api.request import SankhyaClient
@@ -42,7 +43,7 @@ def load_query(nome, **params):
 _sankhya_clients = {}
 
 
-def consulta_sankhya(nome_query, service, item=None, tempo=-15):
+def consulta_sankhya(nome_query, service, offset=None, item=None):
     """
     Executa uma consulta na API Sankhya reutilizando a mesma instância de SankhyaClient
     por serviço, evitando nova autenticação desnecessária.
@@ -55,7 +56,7 @@ def consulta_sankhya(nome_query, service, item=None, tempo=-15):
     client = _sankhya_clients[service]
 
     if "JSON" not in nome_query:
-        query = load_query(nome_query, tempo=tempo)
+        query = load_query(nome_query, offset=offset)
     else:
         query = load_query(nome_query, item=item)
 
@@ -67,7 +68,7 @@ def consulta_sankhya(nome_query, service, item=None, tempo=-15):
 
 def envia_cs(dados, endpoint_cs):
     """
-    Envia uma lista de dados em formato JSON para o endpoint da API CS50 Integração.
+    Envia uma lista de dados em formato JSON para o endpoint da API Icorp.
 
     A função espera que `dados` seja uma lista contendo uma única string JSON,
     que será convertida para objeto Python e enviada via POST para o endpoint fornecido.
@@ -100,15 +101,15 @@ def envia_cs(dados, endpoint_cs):
         return response
 
     except json.JSONDecodeError as e:
-        logging.warning("Erro ao decodificar JSON: %s", e)
+        logging.info("Erro ao decodificar JSON: %s", e)
         return None
 
     except requests.exceptions.RequestException as e:
-        logging.warning("Erro ao enviar requisição: %s", e)
+        logging.info("Erro ao enviar requisição: %s", e)
         return None
 
 
-def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
+def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao, offset):
     """
     Executa o processo de sincronização de dados entre a API Sankhya e a API iCorp.
 
@@ -127,20 +128,23 @@ def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
         endpoint_cs (str): Identificador do endpoint iCorp para onde os dados serão enviados.
         descricao (str): Descrição textual do tipo de dado sendo processado
                          (ex: "produto", "cliente"), usada nos logs e na barra de progresso.
+        offset (int)
     """
     sankhya_service = "DbExplorerSP.executeQuery"
+    is_tty = sys.stdout.isatty()
 
-    codigos = consulta_sankhya(query_codigos, sankhya_service)
-    # logging.info(codigos)
+    codigos = consulta_sankhya(query_codigos, sankhya_service, offset=offset)
+    logging.info(codigos)
     logging.info("Iniciando cadastro|atualização de %s", descricao)
-    for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao):
-        dados_consulta = consulta_sankhya(query_dados, sankhya_service, codigo)
+    for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao, disable=not is_tty,
+                       dynamic_ncols=False, ascii=True):
+        dados_consulta = consulta_sankhya(query_dados, sankhya_service, item=codigo)
         envia_cs(dados_consulta, endpoint_cs)
-        # logging.info(dados_consulta[0][:100]+'...')
+        logging.info(dados_consulta[0][:100] + '...')
     logging.info("Finalizando cadastro|atualização de %s\n", descricao)
 
 
 if __name__ == "__main__":
-    executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
-    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
-    executa_atualizacoes('PRODUTOS', 'JSON_ESTOQUE', 'Saldos_Atualiza', 'estoque')
+    for offsets in range(0, 30000, 5000):
+        executa_atualizacoes('ALL', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto', offsets)
+        executa_atualizacoes('ALL', 'JSON_ESTOQUE', 'Saldos_Atualiza', 'estoque', offsets)

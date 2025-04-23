@@ -97,7 +97,7 @@ class SankhyaClient:  # pylint: disable=too-few-public-methods
                     continue
                 raise SankhyaHTTPError(f"Erro HTTP {response.status_code}: {response.text}")
             except (ReadTimeout, RequestsConnectionError) as e:
-                logging.info("[%d/%d] Timeout ou erro de conexão: %s", attempt + 1, self.retries, e)
+                logging.warning("[%d/%d] Timeout ou erro de conexão: %s", attempt + 1, self.retries, e)
                 time.sleep(5)
             except Exception as e:
                 raise RequestError(f"Erro de conexão geral: {e}") from e
