@@ -141,4 +141,7 @@ def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
 if __name__ == "__main__":
     executa_atualizacoes('PARCEIROS', 'JSON_PARCEIRO', 'Cliente', 'parceiro')
     executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
-    executa_atualizacoes('PRODUTOS', 'JSON_PRODUTO', 'Saldos_Atualiza', 'estoque')
+    executa_atualizacoes('PRODUTOS', 'JSON_ESTOQUE', 'Saldos_Atualiza', 'estoque')
+
+    # executa_atualizacoes('ALL', 'JSON_PRODUTO', 'ProdutoUpdate', 'produto')
+    # executa_atualizacoes('ALL', 'JSON_ESTOQUE', 'Saldos_Atualiza', 'estoque')
