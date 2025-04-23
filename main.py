@@ -10,7 +10,6 @@ import logging
 import os
 import requests
 import requests.exceptions
-import sys
 from dotenv import load_dotenv
 from tqdm import tqdm
 from sankhya_api.request import SankhyaClient
@@ -130,12 +129,12 @@ def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
                          (ex: "produto", "cliente"), usada nos logs e na barra de progresso.
     """
     sankhya_service = "DbExplorerSP.executeQuery"
-    is_tty = sys.stdout.isatty()
+
 
     codigos = consulta_sankhya(query_codigos, sankhya_service)
     # logging.info(codigos)
     logging.info("Iniciando cadastro|atualização de %s", descricao)
-    for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao, disable=not is_tty,
+    for codigo in tqdm(codigos, desc=descricao.capitalize() + 's', unit=descricao,
                        dynamic_ncols=False, ascii=True):
         dados_consulta = consulta_sankhya(query_dados, sankhya_service, codigo)
         envia_cs(dados_consulta, endpoint_cs)
