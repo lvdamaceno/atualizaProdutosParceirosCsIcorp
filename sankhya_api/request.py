@@ -37,7 +37,7 @@ class SankhyaClient:  # pylint: disable=too-few-public-methods
     gerenciando automaticamente autenticação e tentativas de reconexão em caso de falhas.
     """
 
-    def __init__(self, servicename, endpoint, retries, timeout=15):
+    def __init__(self, servicename, endpoint, retries, timeout=60):
         # log_tempo("Início da execução do SankhyaClient")
         self.auth = SankhyaAuth()
 

@@ -190,3 +190,5 @@ cython_debug/
 
 config.json
 *.zip
+lotes_erro.json
+lotes_sucesso.json

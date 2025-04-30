@@ -130,7 +130,6 @@ def executa_atualizacoes(query_codigos, query_dados, endpoint_cs, descricao):
     """
     sankhya_service = "DbExplorerSP.executeQuery"
 
-
     codigos = consulta_sankhya(query_codigos, sankhya_service)
     # logging.info(codigos)
     logging.info("Iniciando cadastro|atualização de %s", descricao)

@@ -51,7 +51,7 @@ class SankhyaAuth:  # pylint: disable=too-few-public-methods
         # log_tempo("Antes de fazer POST na URL de autenticação")
 
         try:
-            response = requests.post(self.url_auth, headers=headers, timeout=15)
+            response = requests.post(self.url_auth, headers=headers, timeout=60)
             # log_tempo("Resposta recebida da API Sankhya")
 
             if response.status_code == 200:
