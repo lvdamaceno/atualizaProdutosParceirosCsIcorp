@@ -1,4 +1,5 @@
 astroid==3.3.9
+backoff==2.2.1
 certifi==2025.1.31
 charset-normalizer==3.4.1
 dill==0.3.9
@@ -8,10 +9,10 @@ mccabe==0.7.0
 platformdirs==4.3.7
 pylint==3.3.6
 python-dotenv==1.1.0
+ratelimit==2.2.1
 requests==2.32.3
 tomli==2.2.1
 tomlkit==0.13.2
 tqdm==4.67.1
 typing_extensions==4.13.2
 urllib3==2.3.0
-ratelimit~=2.2.1

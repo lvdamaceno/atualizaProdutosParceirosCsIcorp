@@ -1,16 +1,38 @@
-from cs_sender import cs_processar_envio, cs_processar_envio_parceiro
+from icorp_api.cs_sender import cs_processar_envio, cs_processar_envio_parceiro
+
+def main():
+    parceiros_sql = """
+        SELECT CODPARC FROM TGFPAR 
+        WHERE TIPPESSOA = 'F' AND DTALTER >= '12/05/2025' 
+        AND CODPARC NOT IN (193) AND ATIVO = 'S'
+        UNION
+        SELECT CODPARC FROM TGFPAR 
+        WHERE CGC_CPF IN (SELECT CPF FROM TFPFUN)
+    """
+
+    produtos_sql = """
+        SELECT PRO.CODPROD FROM TGFPRO PRO
+        WHERE PRO.DTALTER >= '12/05/2025'
+        UNION
+        SELECT CODPROD FROM TGFITE ITE
+        INNER JOIN TGFCAB CAB ON ITE.NUNOTA = CAB.NUNOTA
+        WHERE ITE.DTALTER >= '12/05/2025'
+        UNION
+        SELECT LTRIM(SUBSTRING(CHAVE,CHARINDEX('CODPROD=', CHAVE) + 8,CHARINDEX('CODLOCAL=', CHAVE) - (CHARINDEX('CODPROD=', CHAVE) + 8))) AS CODPROD
+        FROM TSILGT
+        WHERE NOMETAB = 'TGFEXC' AND DHACAO >= '12/05/2025'
+    """
+
+    lote = 50
+
+    # Processamento de parceiros
+    cs_processar_envio_parceiro(parceiros_sql, tamanho_lote=lote)
+
+    # Processamento de produtos
+    cs_processar_envio("produto", produtos_sql, tamanho_lote=lote)
+
+    # Processamento de estoque dos mesmos produtos
+    cs_processar_envio("estoque", produtos_sql, tamanho_lote=lote)
 
 if __name__ == "__main__":
-    # lista_parceiros_para_enviar = "SELECT TOP 5 CODPARC FROM TGFPAR WHERE CGC_CPF IN (SELECT CPF FROM TFPFUN)"
-    lista_parceiros_para_enviar = "SELECT CODPARC FROM TGFPAR WHERE CODPARC = 137"
-    lista_produtos_para_enviar = """
-                                  SELECT TOP 1 CODPROD 
-                                  FROM TGFPRO 
-                                  WHERE CODGRUPOPROD <= '1159999' 
-                                    AND USOPROD = 'R' 
-                                    AND ATIVO = 'S'
-                                  """
-
-    cs_processar_envio_parceiro(lista_parceiros_para_enviar, tamanho_lote=50)
-    cs_processar_envio("produto", lista_produtos_para_enviar, tamanho_lote=50)
-    cs_processar_envio("estoque", lista_produtos_para_enviar, tamanho_lote=50)
+    main()

@@ -4,7 +4,7 @@ import time
 
 import requests
 from requests import RequestException, Timeout
-from snk_auth import SankhyaClient
+from sankhya_api.sankhya_auth import SankhyaClient
 from utils import util_query_name
 
 snk = SankhyaClient()
@@ -34,7 +34,7 @@ def snk_fetch_data(sql):
     tentativas = 5
     for tentativa in range(1, tentativas + 1):
         try:
-            response = requests.get(url, headers=headers, params=params, json=payload, timeout=30)
+            response = requests.get(url, headers=headers, params=params, json=payload, timeout=60)
 
             if response.status_code != 200:
                 raise Exception(f"Erro ao consultar parceiros: {response.status_code} - {response.text}")
