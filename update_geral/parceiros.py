@@ -7,94 +7,19 @@ import requests
 from dotenv import load_dotenv
 from requests.exceptions import Timeout, RequestException
 
-from update_geral.utils import util_remove_brackets
+from update_geral.sankhya_api import snk_fetch_data
+from update_geral.utils import util_remove_brackets, logging_config
+from update_geral.snk_auth import SankhyaClient
 
 load_dotenv()
-env = os.getenv('DEBUG_LOGS')
+logging_config()
 
-if env == '1':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
-else:
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s - %(levelname)s - %(name)s - %(filename)s:%(lineno)d - %(message)s')
-
-logging.debug(f"Valor da variável de ambiente APP_ENV: '{env}'")
-
-# 🔐 Cache do token
-TOKEN_SNK = None
-
-
-def snk_gerar_token():
-    global TOKEN_SNK
-    if TOKEN_SNK:
-        return TOKEN_SNK
-
-    url = f"{os.getenv('SANKHYA_BASE_URL')}/login"
-
-    headers = {
-        "token": os.getenv("SANKHYA_TOKEN"),
-        "appkey": os.getenv("SANKHYA_APPKEY"),
-        "username": os.getenv("SANKHYA_USERNAME"),
-        "password": os.getenv("SANKHYA_PASSWORD"),
-    }
-
-    response = requests.post(url, headers=headers)
-
-    if response.status_code != 200:
-        raise Exception(f"Erro ao autenticar: {response.status_code} - {response.text}")
-
-    data = response.json()
-    TOKEN_SNK = data['bearerToken']
-    logging.debug("🔐 Token gerado com sucesso.")
-    return TOKEN_SNK
-
-
-def snk_fetch_data(sql):
-    url = f"{os.getenv('SANKHYA_BASE_URL')}/gateway/v1/mge/service.sbr"
-    token = snk_gerar_token()
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}"
-    }
-
-    params = {
-        "serviceName": "DbExplorerSP.executeQuery",
-        "outputType": "json"
-    }
-
-    payload = {
-        "serviceName": "DbExplorerSP.executeQuery",
-        "requestBody": {
-            "sql": sql
-        }
-    }
-
-    tentativas = 5
-    for tentativa in range(1, tentativas + 1):
-        try:
-            response = requests.get(url, headers=headers, params=params, json=payload, timeout=60)
-
-            if response.status_code != 200:
-                raise Exception(f"Erro ao consultar parceiros: {response.status_code} - {response.text}")
-
-            data = response.json()
-            return data['responseBody']['rows']
-
-        except Timeout:
-            logging.warning(f"⏱️ Timeout na tentativa {tentativa}/{tentativas}")
-        except RequestException as e:
-            logging.warning(f"⚠️ Erro de requisição na tentativa {tentativa}/{tentativas}: {e}")
-
-        time.sleep(tentativa * 2)
-
-    raise Exception(f"❌ Todas as {tentativas} tentativas de consulta falharam.")
-
+snk = SankhyaClient()
+token = snk.gerar_token()  # só gera uma vez e reutiliza
 
 def snk_fetch_lista_parceiros(sql) -> list[int]:
     try:
-        data = snk_fetch_data(sql)
+        data = snk_fetch_data(token, sql)
         lista_parceiros = [row[0] for row in data]
         logging.debug(f"🔸 Lista de parceiros: {lista_parceiros}")
         return lista_parceiros
@@ -109,7 +34,7 @@ def snk_fetch_json_parceiro(codparc: int) -> str:
     """
     sql = f"SELECT sankhya.CC_CS_JSON_PARCEIRO({codparc})"
     try:
-        data = snk_fetch_data(sql)
+        data = snk_fetch_data(token, sql)
         if not data or not data[0]:
             raise ValueError(f"Nenhum dado retornado para parceiro {codparc}")
         row = data[0][0]
@@ -175,7 +100,7 @@ def cs_enviar_cliente(dados: list[dict]) -> dict:
     return {"erro": f"Falha após {tentativas} tentativas ao enviar cliente para CS."}
 
 def cs_processar_envio_parceiro(sql, tamanho_lote: int = 100):
-    codparcs = snk_fetch_data(sql)
+    codparcs = snk_fetch_data(token, sql)
     total = len(codparcs)
     inicio_total = time.time()
 
