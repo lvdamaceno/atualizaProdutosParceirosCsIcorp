@@ -1,106 +1,18 @@
 import json
 import logging
-import os
 import time
 
-import requests
 from dotenv import load_dotenv
-from requests.exceptions import Timeout, RequestException
 
-from update_geral.sankhya_api import snk_fetch_data
+from update_geral.cs_sender import cs_enviar_cliente
+from update_geral.sankhya_fetch import snk_fetch_data, snk_fetch_json
 from update_geral.utils import util_remove_brackets, logging_config
-from update_geral.snk_auth import SankhyaClient
 
 load_dotenv()
 logging_config()
 
-snk = SankhyaClient()
-token = snk.gerar_token()  # só gera uma vez e reutiliza
-
-def snk_fetch_lista_parceiros(sql) -> list[int]:
-    try:
-        data = snk_fetch_data(token, sql)
-        lista_parceiros = [row[0] for row in data]
-        logging.debug(f"🔸 Lista de parceiros: {lista_parceiros}")
-        return lista_parceiros
-    except Exception as e:
-        logging.error(f"❌ Falha ao buscar lista de parceiros: {e}")
-        return []
-
-
-def snk_fetch_json_parceiro(codparc: int) -> str:
-    """
-    Retorna o JSON bruto (string) do parceiro, chamando a função CC_CS_JSON_PARCEIRO.
-    """
-    sql = f"SELECT sankhya.CC_CS_JSON_PARCEIRO({codparc})"
-    try:
-        data = snk_fetch_data(token, sql)
-        if not data or not data[0]:
-            raise ValueError(f"Nenhum dado retornado para parceiro {codparc}")
-        row = data[0][0]
-        logging.debug(f"🔹 Json do parceiro {codparc}: {row}")
-        return row
-    except Exception as e:
-        logging.error(f"❌ Erro ao buscar JSON do parceiro {codparc}: {e}")
-        return ""
-
-
-def snk_fetch_json_completo(sql):
-    parceiros = snk_fetch_lista_parceiros(sql)
-
-    json_parceiros = []
-    for parceiro in parceiros:
-        json_parceiro = snk_fetch_json_parceiro(parceiro)
-        json_parceiro_limpo = util_remove_brackets(json_parceiro)
-        try:
-            dicionario = json.loads(json_parceiro_limpo)
-            json_parceiros.append(dicionario)
-        except json.JSONDecodeError as e:
-            logging.error(f"❌ Erro ao decodificar JSON do parceiro {parceiro}: {e}")
-            continue
-
-    # Exibe o JSON final em lista
-    logging.debug("📝 Json pronto para enviar para o CS")
-    logging.debug(json.dumps(json_parceiros, indent=2, ensure_ascii=False))
-
-    return json_parceiros
-
-
-def cs_enviar_cliente(dados: list[dict]) -> dict:
-    """
-    Envia dados de cliente para a API CS50Integração.
-    Tenta até 5 vezes em caso de falhas.
-
-    :param dados: Lista de dicionários com dados do(s) cliente(s)
-    :return: Resposta da API (dict)
-    """
-    tenant_id = os.getenv("CS_TENANT")
-    url = f"https://cc01.csicorpnet.com.br/CS50Integracao_API/rest/CS_IntegracaoV1/Cliente?In_Tenant_ID={tenant_id}"
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    tentativas = 5
-    for tentativa in range(1, tentativas + 1):
-        try:
-            logging.info(f"📤 Enviando cliente(s) para CS (tentativa {tentativa}/{tentativas})...")
-            response = requests.post(url, headers=headers, json=dados, timeout=120)
-
-            if response.status_code == 200:
-                logging.info("✅ Cliente(s) enviado com sucesso.")
-                return response.json()
-            else:
-                logging.warning(f"⚠️ Erro HTTP {response.status_code}: {response.text}")
-
-        except requests.exceptions.RequestException as e:
-            logging.error(f"❌ Erro na tentativa {tentativa}: {e}")
-
-        time.sleep(tentativa * 2)  # espera incremental: 2s, 4s, 6s...
-
-    return {"erro": f"Falha após {tentativas} tentativas ao enviar cliente para CS."}
-
 def cs_processar_envio_parceiro(sql, tamanho_lote: int = 100):
-    codparcs = snk_fetch_data(token, sql)
+    codparcs = snk_fetch_data(sql)
     total = len(codparcs)
     inicio_total = time.time()
 
@@ -111,7 +23,7 @@ def cs_processar_envio_parceiro(sql, tamanho_lote: int = 100):
 
         for row in lote:
             codparc = row[0]
-            json_raw = snk_fetch_json_parceiro(codparc)
+            json_raw = snk_fetch_json(codparc, "parceiro")
             json_limpo = util_remove_brackets(json_raw)
             try:
                 json_dict = json.loads(json_limpo)
