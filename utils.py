@@ -1,6 +1,8 @@
 import json
 import re
 from threading import Lock
+import logging
+import os
 
 from cs_api_utils import *
 from sk_api_utils import *
@@ -12,7 +14,6 @@ json_lock = Lock()
 
 
 # --- Funções utilitárias ---
-
 def substituir_aspas_simples(json_obj):
     """
     Substitui aspas simples por duplas nas chaves do JSON (se necessário).
