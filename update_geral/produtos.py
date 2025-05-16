@@ -3,9 +3,9 @@ import logging
 import time
 from dotenv import load_dotenv
 
-from update_geral.cs_sender import cs_enviar_produto
+from update_geral.cs_sender import cs_enviar
 from update_geral.sankhya_fetch import snk_fetch_data, snk_fetch_json
-from update_geral.utils import logging_config
+from update_geral.utils import logging_config, tempo_restante
 
 load_dotenv()
 logging_config()
@@ -34,14 +34,9 @@ def cs_processar_envio_produto(sql, tamanho_lote: int = 100):
         logging.debug(json.dumps(json_lote, indent=2, ensure_ascii=False))
 
         logging.info(f"📦 Enviando lote {i // tamanho_lote + 1} com {len(json_lote)} registros...")
-        resposta = cs_enviar_produto(json_lote)
-        logging.debug(f"⚠️ Resposta da CS: {resposta}")
+        resposta = cs_enviar(json_lote, "produto")
 
-        # Tempo estimado restante
-        duracao_lote = time.time() - inicio_lote
-        restantes = total - (i + len(lote))
-        estimativa_restante = (duracao_lote / len(lote)) * restantes if lote else 0
-        logging.info(f"✅ Lote enviado - ⏱️ Estimativa restante: {estimativa_restante:.1f} segundos")
+        tempo_restante(i, lote, inicio_lote, total, resposta)
 
     duracao_total = time.time() - inicio_total
     logging.info(f"🏁 Processamento completo em {duracao_total:.1f} segundos.")
