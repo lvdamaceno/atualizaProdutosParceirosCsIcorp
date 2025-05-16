@@ -75,7 +75,7 @@ def cs_processar_envio_parceiro(sql, tamanho_lote: int = 100):
 
 def cs_processar_envio(tipo, sql, tamanho_lote: int = 100):
     logging.info("=" * 60)
-    logging.info(f"🟢 INICIANDO PROCESSAMENTO DE {tipo}...")
+    logging.info(f"🟢 INICIANDO PROCESSAMENTO DE {tipo.upper()}...")
     logging.info("=" * 60)
     codprods = snk_fetch_data(sql)
     total = len(codprods)

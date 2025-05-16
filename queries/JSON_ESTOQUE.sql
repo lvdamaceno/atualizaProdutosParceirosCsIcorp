@@ -1,1 +1,0 @@
-SELECT sankhya.CC_CS_JSON_ESTOQUE({item})
