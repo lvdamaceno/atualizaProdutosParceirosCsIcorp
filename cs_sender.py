@@ -6,8 +6,8 @@ import time
 import requests
 from dotenv import load_dotenv
 
-from update_geral.sankhya_fetch import snk_fetch_data, snk_fetch_json
-from update_geral.utils import util_cs_enpoint, util_remove_brackets, tempo_restante, logging_config
+from sankhya_fetch import snk_fetch_data, snk_fetch_json
+from utils import util_cs_enpoint, util_remove_brackets, tempo_restante, logging_config
 
 load_dotenv()
 logging_config()

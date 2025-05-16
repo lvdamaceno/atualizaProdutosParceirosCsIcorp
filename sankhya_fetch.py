@@ -4,8 +4,8 @@ import time
 
 import requests
 from requests import RequestException, Timeout
-from update_geral.snk_auth import SankhyaClient
-from update_geral.utils import util_query_name
+from snk_auth import SankhyaClient
+from utils import util_query_name
 
 snk = SankhyaClient()
 

@@ -1,7 +1,8 @@
-from update_geral.cs_sender import cs_processar_envio, cs_processar_envio_parceiro
+from cs_sender import cs_processar_envio, cs_processar_envio_parceiro
 
 if __name__ == "__main__":
-    lista_parceiros_para_enviar = "SELECT TOP 5 CODPARC FROM TGFPAR WHERE CGC_CPF IN (SELECT CPF FROM TFPFUN)"
+    # lista_parceiros_para_enviar = "SELECT TOP 5 CODPARC FROM TGFPAR WHERE CGC_CPF IN (SELECT CPF FROM TFPFUN)"
+    lista_parceiros_para_enviar = "SELECT CODPARC FROM TGFPAR WHERE CODPARC = 137"
     lista_produtos_para_enviar = """
                                   SELECT TOP 1 CODPROD 
                                   FROM TGFPRO 
