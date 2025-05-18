@@ -55,7 +55,7 @@ def snk_fetch_data(sql):
 def snk_fetch_json(codigo: int, tipo: str) -> str:
     # Define que tipo de consulta será feito no banco
     query = util_query_name(tipo)
-    logging.debug(f"🔍 Buscando dados do {tipo} {codigo}")
+    logging.info(f"🔍 Buscando dados do {tipo} {codigo}")
     sql = f"SELECT sankhya.CC_CS_JSON_{query}({codigo})"
     try:
         data = snk_fetch_data(sql)
@@ -63,7 +63,7 @@ def snk_fetch_json(codigo: int, tipo: str) -> str:
         if not data or not data[0]:
             raise ValueError(f"Nenhum dado retornado para o {tipo} {codigo}")
         row = data[0][0]
-        logging.debug(f"🔹 Json do {tipo} {codigo}: {row}")
+        # logging.debug(f"🔹 Json do {tipo} {codigo}: {row}")
         return row
     except Exception as e:
         logging.error(f"❌ Erro ao buscar JSON do {tipo} {codigo}: {e}")

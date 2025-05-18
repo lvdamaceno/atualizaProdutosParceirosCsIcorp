@@ -30,13 +30,6 @@ def util_query_name(tipo: str) -> str:
     except KeyError:
         raise ValueError(f"❌ Tipo de query inválido: '{tipo}'")
 
-def tempo_restante(i, lote, inicio_lote, total, resposta):
-    logging.debug(f"⚠️ Resposta da CS: {resposta}")
-    # Tempo estimado restante
-    duracao_lote = time.time() - inicio_lote
-    restantes = total - (i + len(lote))
-    estimativa_restante = (duracao_lote / len(lote)) * restantes if lote else 0
-    logging.info(f"✅ Lote enviado - ⏱️ Estimativa restante: {estimativa_restante:.1f} segundos")
 
 
 def util_cs_enpoint(tipo: str) -> str:
