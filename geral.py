@@ -7,4 +7,4 @@ def envio_geral(step, lote, workers):
 
 
 if __name__ == "__main__":
-    envio_geral(200, 100, 100)
+    envio_geral(50, 10, 35)
