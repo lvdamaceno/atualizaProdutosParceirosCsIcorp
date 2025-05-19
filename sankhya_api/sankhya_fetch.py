@@ -35,7 +35,7 @@ def snk_fetch_data(sql):
     timeout = [60, 90, 120, 150, 180]
     for tentativa in range(1, tentativas + 1):
         try:
-            response = requests.get(url, headers=headers, params=params, json=payload, timeout=timeout[tentativa])
+            response = requests.get(url, headers=headers, params=params, json=payload, timeout=timeout[tentativa-1])
 
             if response.status_code != 200:
                 raise Exception(f"Erro ao consultar parceiros: {response.status_code} - {response.text}")
