@@ -23,10 +23,11 @@ def cs_enviar(dados: list[dict], tipo) -> dict:
     }
 
     tentativas = 5
+    timeout = [120, 150, 180, 210, 240]
     for tentativa in range(1, tentativas + 1):
         try:
             logging.info(f"📤 Enviando {tipo}(s) para CS ({tentativa}/{tentativas})...")
-            response = requests.post(url, headers=headers, json=dados, timeout=120)
+            response = requests.post(url, headers=headers, json=dados, timeout=timeout[tentativa])
 
             if response.status_code == 200:
                 logging.info(f"✅ {tipo}(s) enviado com sucesso.")
