@@ -133,8 +133,8 @@ def envio_fragmentado(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step", type=int, default=10)
-    parser.add_argument("--lote", type=int, default=10)
+    parser.add_argument("--step", type=int, default=100)
+    parser.add_argument("--lote", type=int, default=100)
     parser.add_argument("--workers", type=int, default=20)
     parser.add_argument("--tempo", type=int, default=15)
     args = parser.parse_args()
