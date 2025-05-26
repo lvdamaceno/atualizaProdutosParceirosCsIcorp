@@ -1,119 +1,168 @@
 import logging
 import time
+import math
 
 from icorp_api.cs_sender import cs_processar_envio_parceiro, cs_processar_envio_generico
 from sankhya_api.sankhya_fetch import snk_fetch_data
-
 from utils import logging_config
 
 logging_config()
 
-# ATUALIZACAO SEMANAL
-
-def processar_parceiros(step, lote, workers):
-    query_total_parceiros = f""" 
-    SELECT COUNT(CODPARC) TOTAL 
-    FROM TGFPAR WHERE ATIVO = 'S'
-    AND CGC_CPF IS NOT NULL AND CLIENTE = 'S'
+def process_batches(
+    query_total: str,
+    query_base: str,
+    step: int,
+    lote: int,
+    workers: int,
+    tipos: list[str]
+) -> None:
     """
-
-    total_parceiros = snk_fetch_data(query_total_parceiros)[0][0]
-    logging.info(f"ℹ️ Total de Parceiros: {total_parceiros}")
-    j = 1
-    inicio = time.time()
-
-    # Processamento de parceiros
-    for i in range(0, total_parceiros, step):
-        logging.info("=" * 42)
-        decorrido = (time.time() - inicio) / 60  # em minutos
-        logging.info(f"🔄 Tempo decorrido: {decorrido:.2f} minutos")
-        logging.info(f"ℹ️ Lote: {j} de {(total_parceiros-i)//step}")
-        logging.info(f"ℹ️ Faltam: {total_parceiros - i} parceiros")
-        query_detalhe_parceiro = f"""
-        SELECT CODPARC FROM TGFPAR WHERE ATIVO = 'S' 
-        AND CGC_CPF IS NOT NULL AND CLIENTE = 'S'
-        ORDER BY CODPARC OFFSET {i} ROWS FETCH NEXT {step} ROWS ONLY
+    Processa registros em lotes baseado em queries, executando envios CS para cada tipo.
+    Se não houver registros ou ocorrer falha na consulta, retorna sem erro.
     """
-        cs_processar_envio_parceiro(query_detalhe_parceiro, tamanho_lote=lote, max_workers=workers)
-        j += 1
+    # Obtém total de registros
+    try:
+        result = snk_fetch_data(query_total)
+        total = result[0][0] if result and result[0] else 0
+    except Exception as e:
+        logging.warning(f"⚠️ Falha ao obter total de registros: {e}")
+        return
 
-def processar_produtos(step, lote, workers):
-    query_total_produtos = f"""
-        SELECT COUNT(DISTINCT ITE.CODPROD)
-        FROM TGFITE ITE
-        INNER JOIN TGFCAB CAB ON ITE.NUNOTA = CAB.NUNOTA
-        INNER JOIN TGFPRO PRO ON ITE.CODPROD = PRO.CODPROD
-        WHERE PRO.ATIVO = 'S' AND PRO.USOPROD = 'R'
+    if total == 0:
+        logging.info("ℹ️ Nenhuma atualização encontrada. Nada a processar.")
+        return
+
+    n_batches = math.ceil(total / step)
+    logging.info(f"ℹ️ Total de registros: {total}, dividido em {n_batches} lotes de {step}")
+
+    start = time.perf_counter()
+
+    for idx in range(n_batches):
+        offset = idx * step
+        elapsed = time.perf_counter() - start
+        mins, secs = divmod(int(elapsed), 60)
+        remaining = max(total - offset, 0)
+
+        logging.info("=" * 42)
+        logging.info(
+            f"🔄 Lote {idx + 1}/{n_batches} | "
+            f"Tempo decorrido: {mins}m{secs:02d}s | Faltam: {remaining}"
+        )
+
+        paged_query = f"{query_base.strip()}\nOFFSET {offset} ROWS FETCH NEXT {step} ROWS ONLY"
+
+        for tipo in tipos:
+            logging.info(f"➡️ Processando tipo '{tipo}'")
+            # Verifica códigos antes de chamar o sender
+            try:
+                codes = snk_fetch_data(paged_query)
+            except Exception as e:
+                logging.warning(f"⚠️ Falha ao buscar códigos de '{tipo}': {e}")
+                continue
+
+            if not codes:
+                logging.info(f"ℹ️ Sem códigos de '{tipo}' no lote {idx+1}. Pulando.")
+                continue
+
+            # Envia lote
+            try:
+                if tipo == "parceiro":
+                    cs_processar_envio_parceiro(
+                        paged_query,
+                        tamanho_lote=lote,
+                        max_workers=workers
+                    )
+                else:
+                    cs_processar_envio_generico(
+                        tipo,
+                        paged_query,
+                        tamanho_lote=lote,
+                        max_workers=workers
+                    )
+            except Exception as e:
+                logging.error(f"❌ Erro no envio de '{tipo}' no lote {idx+1}: {e}", exc_info=True)
+                continue
+
+    total_elapsed = time.perf_counter() - start
+    mins, secs = divmod(int(total_elapsed), 60)
+    logging.info(f"🏁 Processamento completo em {mins}m{secs:02d}s")
+
+
+def processar_parceiros(
+    step: int,
+    lote: int,
+    workers: int,
+    query_total: str = None,
+    query_base: str = None
+) -> None:
     """
+    Atualização de parceiros.
+    Se query_total e query_base forem fornecidos, executa envio fragmentado,
+    senão usa queries padrão semanal.
+    """
+    if not query_total or not query_base:
+        query_total = (
+            "SELECT COUNT(CODPARC) "
+            "FROM TGFPAR "
+            "WHERE ATIVO = 'S' "
+            "AND CGC_CPF IS NOT NULL "
+            "AND CLIENTE = 'S'"
+        )
+        query_base = (
+            "SELECT CODPARC "
+            "FROM TGFPAR "
+            "WHERE ATIVO = 'S' "
+            "AND CGC_CPF IS NOT NULL "
+            "AND CLIENTE = 'S' "
+            "ORDER BY CODPARC"
+        )
 
-    total_produtos = snk_fetch_data(query_total_produtos)[0][0]
-    logging.info(f"ℹ️ Total de Produtos: {total_produtos}")
-    j = 1
-    inicio = time.time()
+    process_batches(
+        query_total=query_total,
+        query_base=query_base,
+        step=step,
+        lote=lote,
+        workers=workers,
+        tipos=['parceiro']
+    )
 
-    for i in range(0, total_produtos, step):
-        logging.info("=" * 42)
-        logging.info(f"ℹ️ Lote: {j} de {(total_produtos - i) // step}")
-        decorrido = (time.time() - inicio) / 60  # em minutos
-        logging.info(f"🔄 Tempo decorrido: {decorrido:.2f} minutos")
-        logging.info(f"ℹ️ Faltam: {total_produtos - i} produtos")
-        query_detalhe_produto = f"""
-            SELECT DISTINCT ITE.CODPROD FROM TGFITE ITE
-            INNER JOIN TGFCAB CAB ON ITE.NUNOTA = CAB.NUNOTA
-            INNER JOIN TGFPRO PRO ON ITE.CODPROD = PRO.CODPROD
-            WHERE PRO.ATIVO = 'S' AND PRO.USOPROD = 'R'
-            ORDER BY ITE.CODPROD
-            OFFSET {i} ROWS FETCH NEXT {step} ROWS ONLY
-        """
-        # Processamento de produtos
-        cs_processar_envio_generico("produto", query_detalhe_produto,
-                                    tamanho_lote= lote, max_workers=workers)
-        # Processamento de estoque dos mesmos produtos
-        cs_processar_envio_generico("estoque", query_detalhe_produto,
-                                    tamanho_lote= lote, max_workers=workers)
-        j += 1
 
-# ATUALIZACAO HORARIA
+def processar_produtos(
+    step: int,
+    lote: int,
+    workers: int,
+    query_total: str = None,
+    query_base: str = None
+) -> None:
+    """
+    Atualização de produtos.
+    Se query_total e query_base forem fornecidos, executa envio fragmentado,
+    senão usa queries padrão semanal para dados e estoque.
+    """
+    if not query_total or not query_base:
+        query_total = (
+            "SELECT COUNT(DISTINCT ITE.CODPROD) "
+            "FROM TGFITE ITE "
+            "INNER JOIN TGFCAB CAB ON ITE.NUNOTA = CAB.NUNOTA "
+            "INNER JOIN TGFPRO PRO ON ITE.CODPROD = PRO.CODPROD "
+            "WHERE PRO.ATIVO = 'S' "
+            "AND PRO.USOPROD = 'R'"
+        )
+        query_base = (
+            "SELECT DISTINCT ITE.CODPROD "
+            "FROM TGFITE ITE "
+            "INNER JOIN TGFCAB CAB ON ITE.NUNOTA = CAB.NUNOTA "
+            "INNER JOIN TGFPRO PRO ON ITE.CODPROD = PRO.CODPROD "
+            "WHERE PRO.ATIVO = 'S' "
+            "AND PRO.USOPROD = 'R' "
+            "ORDER BY ITE.CODPROD"
+        )
 
-def processar_parceiros_fragmentos_hora(step, lote, workers, query_total, query_detalhe):
-    total_parceiros = snk_fetch_data(query_total)[0][0]
-    logging.info(f"ℹ️ Total de Parceiros: {total_parceiros}")
-    j = 1
-    inicio = time.time()
-    # Processamento de parceiros
-    for i in range(0, total_parceiros, step):
-        logging.info("=" * 42)
-        logging.info(f"ℹ️ Lote: {j} de {total_parceiros // step}")
-        decorrido = (time.time() - inicio) / 60  # em minutos
-        logging.info(f"🔄 Tempo decorrido: {decorrido:.2f} minutos")
-        logging.info(f"ℹ️ Faltam: {total_parceiros - i} parceiros")
-        query_detalhe_parceiro = f"""
-            {query_detalhe}
-            OFFSET {i} ROWS FETCH NEXT {step} ROWS ONLY
-        """
-        cs_processar_envio_parceiro(query_detalhe_parceiro, tamanho_lote=lote, max_workers=workers)
-        j += 1
-
-def processar_produtos_fragmentos_hora(step, lote, workers, query_total, query_detalhe):
-    total_produtos = snk_fetch_data(query_total)[0][0]
-    logging.info(f"ℹ️ Total de Produtos: {total_produtos}")
-    j = 1
-    inicio = time.time()
-
-    for i in range(0, total_produtos, step):
-        logging.info("=" * 42)
-        logging.info(f"ℹ️ Lote: {j} de {(total_produtos - i) // step}")
-        decorrido = (time.time() - inicio) / 60  # em minutos
-        logging.info(f"🔄 Tempo decorrido: {decorrido:.2f} minutos")
-        logging.info(f"ℹ️ Faltam: {total_produtos - i} produtos")
-        query_detalhe_produto = f"""
-            {query_detalhe}
-            OFFSET {i} ROWS FETCH NEXT {step} ROWS ONLY
-        """
-        # Processamento de produtos
-        cs_processar_envio_generico("produto", query_detalhe_produto,
-                                    tamanho_lote= lote, max_workers=workers)
-        # Processamento de estoque dos mesmos produtos
-        cs_processar_envio_generico("estoque", query_detalhe_produto,
-                                    tamanho_lote= lote, max_workers=workers)
-        j += 1
+    process_batches(
+        query_total=query_total,
+        query_base=query_base,
+        step=step,
+        lote=lote,
+        workers=workers,
+        tipos=['produto', 'estoque']
+    )
