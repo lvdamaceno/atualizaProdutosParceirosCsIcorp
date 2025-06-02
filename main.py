@@ -130,7 +130,6 @@ def envio_fragmentado(
     logging.info(msg)
     enviar_notificacao_telegram(msg)
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--step", type=int, default=100)

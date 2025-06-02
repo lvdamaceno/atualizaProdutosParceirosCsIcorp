@@ -3,7 +3,6 @@ import logging
 import requests
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timezone, timedelta
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -27,27 +26,10 @@ def enviar_notificacao_telegram(mensagem):
         response = requests.post(url, data=payload)
         if response.status_code == 200:
             logging.info("Notificação enviada com sucesso!")
+            return True
         else:
             logging.warning(f"Falha ao enviar notificação: {response.status_code}")
+            return False
     except requests.exceptions.RequestException as e:
         logging.error(f"Ocorreu um erro: {e}")
-
-
-def converter_data_iso_para_br(data_iso):
-    # Remove excesso de zeros para ficar compatível com o fromisoformat
-    if '.' in data_iso:
-        parte_data, parte_fuso = data_iso.split('+')
-        parte_data = parte_data[:26]  # Cortar para até microssegundos (6 casas)
-        data_iso_corrigido = f"{parte_data}+{parte_fuso}"
-    else:
-        data_iso_corrigido = data_iso
-
-    # Converte a string ISO corrigida para datetime
-    dt = datetime.fromisoformat(data_iso_corrigido)
-
-    # Ajusta para horário de Brasília (UTC-3)
-    dt_brasilia = dt.astimezone(timezone(timedelta(hours=-3)))
-
-    # Formata para o padrão brasileiro
-    return dt_brasilia.strftime('%d/%m/%Y %H:%M:%S')
-
+        return None
